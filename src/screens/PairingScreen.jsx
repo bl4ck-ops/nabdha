@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signInWithPopup } from 'firebase/auth'
+import { signInWithPopup, signOut } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore'
 import { auth, googleProvider, db } from '../firebase'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -243,6 +243,15 @@ export default function PairingScreen({ user, userData }) {
       <p className="text-xs text-gray-400 mt-6 text-center">
         نبضة — تطبيق للأزواج فقط ❤️
       </p>
+
+      {user && (
+        <button
+          onClick={() => signOut(auth)}
+          className="mt-3 text-xs text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
+        >
+          تسجيل الخروج
+        </button>
+      )}
     </div>
   )
 }
