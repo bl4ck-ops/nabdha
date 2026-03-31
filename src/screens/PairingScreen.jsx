@@ -9,14 +9,13 @@ function generateCode() {
 }
 
 export default function PairingScreen({ user, userData }) {
-  const [step, setStep] = useState(user ? 'link' : 'login') // 'login' | 'link'
-  const [mode, setMode] = useState(null) // 'create' | 'join'
-  const [inviteCode, setInviteCode] = useState('')
+  const [step, setStep]               = useState(user ? 'link' : 'login')
+  const [mode, setMode]               = useState(null)
   const [generatedCode, setGeneratedCode] = useState('')
-  const [inputCode, setInputCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [inputCode, setInputCode]     = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState('')
+  const [copied, setCopied]           = useState(false)
 
   // ── Step 1: Google Sign-In ──────────────────────────────
   async function handleGoogleLogin() {
@@ -37,10 +36,8 @@ export default function PairingScreen({ user, userData }) {
     setLoading(true)
     setError('')
     try {
-      const uid = auth.currentUser.uid
+      const uid  = auth.currentUser.uid
       const code = generateCode()
-
-      // Check user doesn't already have a pending couple doc
       const coupleRef = doc(collection(db, 'couples'))
       await setDoc(coupleRef, {
         partnerA: uid,
@@ -48,13 +45,10 @@ export default function PairingScreen({ user, userData }) {
         inviteCode: code,
         createdAt: serverTimestamp(),
       })
-
-      // Store coupleId + pending invite on user doc (but NOT full coupleId yet — wait for partner)
       await setDoc(doc(db, 'users', uid), {
         pendingCoupleId: coupleRef.id,
         pendingCode: code,
       }, { merge: true })
-
       setGeneratedCode(code)
       setMode('create')
     } catch (e) {
@@ -66,47 +60,21 @@ export default function PairingScreen({ user, userData }) {
 
   // ── Step 2b: Join with code ─────────────────────────────
   async function handleJoinCode() {
-    if (inputCode.length !== 6) {
-      setError('الكود لازم يكون 6 أرقام')
-      return
-    }
+    if (inputCode.length !== 6) { setError('الكود لازم يكون 6 أرقام'); return }
     setLoading(true)
     setError('')
     try {
       const uid = auth.currentUser.uid
-
-      // Find the couple doc by invite code
-      const q = query(collection(db, 'couples'), where('inviteCode', '==', inputCode))
+      const q   = query(collection(db, 'couples'), where('inviteCode', '==', inputCode))
       const snap = await getDocs(q)
-
-      if (snap.empty) {
-        setError('الكود ده مش موجود. تأكد منه وجرب تاني.')
-        setLoading(false)
-        return
-      }
-
-      const coupleDoc = snap.docs[0]
+      if (snap.empty) { setError('الكود ده مش موجود. تأكد منه وجرب تاني.'); setLoading(false); return }
+      const coupleDoc  = snap.docs[0]
       const coupleData = coupleDoc.data()
-
-      if (coupleData.partnerB) {
-        setError('الكود ده اتستخدم قبل كده.')
-        setLoading(false)
-        return
-      }
-
-      if (coupleData.partnerA === uid) {
-        setError('مش ممكن تربط نفسك بنفسك 😄')
-        setLoading(false)
-        return
-      }
-
-      // Link both partners
+      if (coupleData.partnerB)          { setError('الكود ده اتستخدم قبل كده.');          setLoading(false); return }
+      if (coupleData.partnerA === uid)   { setError('مش ممكن تربط نفسك بنفسك 😄');         setLoading(false); return }
       await updateDoc(doc(db, 'couples', coupleDoc.id), { partnerB: uid })
-
-      // Set coupleId on BOTH user docs
-      await setDoc(doc(db, 'users', uid), { coupleId: coupleDoc.id }, { merge: true })
+      await setDoc(doc(db, 'users', uid),                 { coupleId: coupleDoc.id }, { merge: true })
       await setDoc(doc(db, 'users', coupleData.partnerA), { coupleId: coupleDoc.id }, { merge: true })
-
     } catch (e) {
       setError('حدث خطأ. جرب تاني.')
     } finally {
@@ -114,22 +82,18 @@ export default function PairingScreen({ user, userData }) {
     }
   }
 
-  // ── Poll: check if partner accepted my code ─────────────
+  // ── Poll: check if partner accepted ─────────────────────
   async function handleCheckIfPaired() {
     setLoading(true)
     setError('')
     try {
-      const uid = auth.currentUser.uid
+      const uid      = auth.currentUser.uid
       const userSnap = await getDoc(doc(db, 'users', uid))
-      const data = userSnap.data()
-
+      const data     = userSnap.data()
       if (data?.pendingCoupleId) {
         const coupleSnap = await getDoc(doc(db, 'couples', data.pendingCoupleId))
         if (coupleSnap.exists() && coupleSnap.data().partnerB) {
-          // Partner joined! Finalize
-          await setDoc(doc(db, 'users', uid), {
-            coupleId: data.pendingCoupleId,
-          }, { merge: true })
+          await setDoc(doc(db, 'users', uid), { coupleId: data.pendingCoupleId }, { merge: true })
         } else {
           setError('شريكك لسه مش انضم. خليه يدخل الكود.')
         }
@@ -147,26 +111,26 @@ export default function PairingScreen({ user, userData }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // ── Render ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50 to-white flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: 'linear-gradient(160deg, #fff0f3 0%, #fffaf9 55%)' }}>
+
       {/* Logo / hero */}
-      <div className="mb-8 text-center">
-        <div className="w-20 h-20 bg-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-rose-200">
-          <span className="text-4xl">💗</span>
+      <div className="mb-8 text-center animate-fade-in-up">
+        <div className="w-20 h-20 bg-brand-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-warm-lg">
+          <span className="text-4xl animate-heartbeat">💗</span>
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-1">نبضة</h1>
-        <p className="text-gray-500 text-sm">خلوا عينكم على قلب بعض</p>
+        <h1 className="text-4xl font-bold text-brand-900 mb-1">نبضة</h1>
+        <p className="text-gray-400 text-sm">خلوا عينكم على قلب بعض</p>
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl shadow-rose-100/50 border border-rose-100 p-6">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-warm-xl border border-brand-100 p-6 animate-fade-in-up">
 
-        {/* ── LOGIN STEP ── */}
+        {/* ── LOGIN ── */}
         {step === 'login' && (
           <>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">أهلاً وسهلاً 👋</h2>
-            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            <h2 className="text-xl font-bold text-brand-900 mb-2">أهلاً وسهلاً 👋</h2>
+            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
               ابدأ بتسجيل الدخول بحساب جوجل بتاعك.
             </p>
             <button
@@ -180,25 +144,25 @@ export default function PairingScreen({ user, userData }) {
           </>
         )}
 
-        {/* ── LINK STEP – choose mode ── */}
+        {/* ── LINK – choose mode ── */}
         {step === 'link' && mode === null && (
           <>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">ربط الحساب بشريكك 🔗</h2>
-            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            <h2 className="text-xl font-bold text-brand-900 mb-2">ربط الحساب بشريكك 🔗</h2>
+            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
               عشان تشوفوا بطاريات بعض، محتاج تربطوا الحسابات.
             </p>
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleCreateCode}
                 disabled={loading}
-                className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-2xl py-3.5 transition-all active:scale-95 shadow-md shadow-rose-200 disabled:opacity-60"
+                className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl py-3.5 transition-all active:scale-95 shadow-warm-lg disabled:opacity-60"
               >
                 🎲 اعمل كود دعوة جديد
               </button>
               <button
                 onClick={() => setMode('join')}
                 disabled={loading}
-                className="w-full bg-white border-2 border-rose-200 hover:border-rose-300 text-rose-600 font-bold rounded-2xl py-3.5 transition-all active:scale-95 disabled:opacity-60"
+                className="w-full bg-white border-2 border-brand-200 hover:border-brand-400 text-brand-600 font-bold rounded-2xl py-3.5 transition-all active:scale-95 disabled:opacity-60"
               >
                 🔑 عندي كود من شريكي
               </button>
@@ -206,24 +170,24 @@ export default function PairingScreen({ user, userData }) {
           </>
         )}
 
-        {/* ── LINK STEP – show generated code ── */}
+        {/* ── LINK – show generated code ── */}
         {step === 'link' && mode === 'create' && (
           <>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">كودك الخاص 🎉</h2>
-            <p className="text-gray-500 text-sm mb-4 leading-relaxed">
+            <h2 className="text-xl font-bold text-brand-900 mb-2">كودك الخاص 🎉</h2>
+            <p className="text-gray-400 text-sm mb-4 leading-relaxed">
               ابعت الكود ده لشريكك. لما يدخله، هتتربطوا مع بعض.
             </p>
             <div
               onClick={copyCode}
-              className="flex items-center justify-between bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 mb-4 cursor-pointer hover:bg-rose-100 transition-all"
+              className="flex items-center justify-between bg-brand-50 border-2 border-brand-200 rounded-2xl p-4 mb-4 cursor-pointer hover:bg-brand-100 transition-all"
             >
-              <span className="text-3xl font-bold text-rose-600 tracking-widest">{generatedCode}</span>
-              <span className="text-sm text-rose-400">{copied ? '✅ اتنسخ' : '📋 انسخ'}</span>
+              <span className="text-3xl font-bold text-brand-700 tracking-widest">{generatedCode}</span>
+              <span className="text-sm text-brand-400">{copied ? '✅ اتنسخ' : '📋 انسخ'}</span>
             </div>
             <button
               onClick={handleCheckIfPaired}
               disabled={loading}
-              className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-2xl py-3.5 transition-all active:scale-95 shadow-md shadow-rose-200 disabled:opacity-60"
+              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl py-3.5 transition-all active:scale-95 shadow-warm-lg disabled:opacity-60"
             >
               {loading ? '⏳ بنتحقق...' : '🔄 شريكي دخل الكود؟'}
             </button>
@@ -236,11 +200,11 @@ export default function PairingScreen({ user, userData }) {
           </>
         )}
 
-        {/* ── LINK STEP – enter partner's code ── */}
+        {/* ── LINK – enter partner's code ── */}
         {step === 'link' && mode === 'join' && (
           <>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">أدخل الكود 🔑</h2>
-            <p className="text-gray-500 text-sm mb-4 leading-relaxed">
+            <h2 className="text-xl font-bold text-brand-900 mb-2">أدخل الكود 🔑</h2>
+            <p className="text-gray-400 text-sm mb-4 leading-relaxed">
               اطلب من شريكك كوده وادخله هنا.
             </p>
             <input
@@ -250,13 +214,13 @@ export default function PairingScreen({ user, userData }) {
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value.slice(0, 6))}
               placeholder="000000"
-              className="w-full text-center text-3xl font-bold tracking-widest bg-rose-50 border-2 border-rose-200 rounded-2xl py-4 text-rose-600 placeholder-rose-200 focus:outline-none focus:border-rose-400 mb-4"
+              className="w-full text-center text-3xl font-bold tracking-widest bg-brand-50 border-2 border-brand-200 rounded-2xl py-4 text-brand-700 placeholder-brand-200 focus:outline-none focus:border-brand-500 mb-4"
               style={{ letterSpacing: '0.3em' }}
             />
             <button
               onClick={handleJoinCode}
               disabled={loading || inputCode.length !== 6}
-              className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-2xl py-3.5 transition-all active:scale-95 shadow-md shadow-rose-200 disabled:opacity-60"
+              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl py-3.5 transition-all active:scale-95 shadow-warm-lg disabled:opacity-60"
             >
               {loading ? '⏳ بنتحقق...' : '✅ ربط الحساب'}
             </button>
@@ -270,7 +234,7 @@ export default function PairingScreen({ user, userData }) {
         )}
 
         {error && (
-          <p className="mt-4 text-rose-500 text-sm text-center bg-rose-50 rounded-xl py-2 px-3">
+          <p className="mt-4 text-brand-600 text-sm text-center bg-brand-50 rounded-xl py-2 px-3">
             ⚠️ {error}
           </p>
         )}
