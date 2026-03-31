@@ -73,7 +73,7 @@ function AppWithFirebase() {
           element={
             authUser && userData?.coupleId
               ? <Navigate to="/" replace />
-              : <PairingScreen user={authUser} userData={userData} />
+              : <PairingScreen key={authUser?.uid ?? 'guest'} user={authUser} userData={userData} />
           }
         />
         <Route
